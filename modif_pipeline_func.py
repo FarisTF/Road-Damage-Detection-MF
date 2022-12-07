@@ -1,17 +1,3 @@
-# fungsi helper
-def get_output_name(output_path):
-  no_mp4 = output_path.strip(".mp4")
-  nama_folder = ""
-  for element in reversed(no_mp4):
-    if element == "/":
-      break
-    nama_folder = nama_folder + element
-  nama_folder = nama_folder[::-1]
-  print(nama_folder)
-  return (nama_folder)
-
-
-
 #   ====================================== SLOW DOWN VIDEO ======================================
 def slow_down_video(input_path, output_path):
     import cv2
@@ -202,14 +188,12 @@ def measure_bbox(xmin, ymin, xmax, ymax):
 
 
 #   ====================================== SCREENSHOOT ======================================
-def screenshot(frame, pothole_id, output_path):
+def screenshot(frame, pothole_id, folder_path):
   import cv2, os
   # start helper function
-  nama_folder = get_output_name(output_path)
-  path_folder = "ss_" + nama_folder
-  if not os.path.isdir("result/" + path_folder):
-   os.makedirs("result/" + path_folder)
-  path_ss = "result/" + str(path_folder) + "/" + str(pothole_id) + ".png"
+  if not os.path.isdir(folder_path + "/ss"):
+   os.makedirs(folder_path + "/ss")
+  path_ss = folder_path + "/ss" + "/" + str(pothole_id) + ".png"
   full_color = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
   cv2.imwrite(path_ss, full_color)
   return path_ss
@@ -233,7 +217,7 @@ def timestamps(vid):
 
 
 #   ====================================== DEEP SORT ======================================
-def deep_sort(tracker,detections,colors,frame,set_of_id,vid,frame_num,array_of_data,flag_info, output_path):
+def deep_sort(tracker,detections,colors,frame,set_of_id,vid,frame_num,array_of_data,flag_info, folder_path):
   import cv2
   # Call the tracker
   tracker.predict()
@@ -257,7 +241,7 @@ def deep_sort(tracker,detections,colors,frame,set_of_id,vid,frame_num,array_of_d
         set_of_id.add(track.track_id)
 
         # Panggil panggil fungsi
-        ss_path = screenshot(frame, track.track_id, output_path)
+        ss_path = screenshot(frame, track.track_id, folder_path)
         time_stamp = str(timestamps(vid))
         real_size, real_x, real_y = measure_bbox(int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))
         current_count = counting(set_of_id)
@@ -274,7 +258,7 @@ def deep_sort(tracker,detections,colors,frame,set_of_id,vid,frame_num,array_of_d
 
 
 #   ====================================== OBJECT DETECTION ======================================
-def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold, output_path, csv_path) :
+def detection_and_deepsort(input_path, detect_what, model_path, score_threshold, iou_threshold, output_folder) :
   import os
   # comment out below line to enable tensorflow logging outputs
   os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -297,9 +281,26 @@ def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold
   from deep_sort.tracker import Tracker
   from tools import generate_detections as gdet
 
+  # Ngebuat folder result kalo belom ada
+  if not os.path.exists("result"):
+      os.makedirs("result")
+
   # Variabel penting
   flag_video = input_path
-  flag_output = output_path
+
+  folder_path = "result/"+output_folder
+  if not os.path.exists(folder_path):
+      os.makedirs(folder_path)
+      
+  flag_output = "result/"+output_folder+"/"+detect_what+"_"+output_folder+".mp4"
+  csv_path = "result/"+output_folder+"/"+detect_what+"_"+output_folder+".csv"
+
+  folder_eval_path = "result/"+output_folder+"/eval"
+  if not os.path.exists(folder_eval_path):
+      os.makedirs(folder_eval_path)
+
+  eval_path ="result/"+output_folder+"/eval/"+detect_what+"_"+output_folder+".csv"
+  
   flag_weights = model_path
   flag_score = score_threshold
   flag_iou = iou_threshold
@@ -320,11 +321,6 @@ def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold
   config = ConfigProto()
   config.gpu_options.allow_growth = True
   session = InteractiveSession(config=config)
-
-  STRIDES = np.array([16, 32])
-  ANCHORS = np.array([23,27, 37,58, 81,82, 81,82, 135,169, 344,319]).reshape(2,3,2)
-  XYSCALE = [1.05, 1.05]
-  NUM_CLASS = 1
 
   video_path = flag_video
 
@@ -355,7 +351,7 @@ def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold
 
   # untuk csv evaluasi
   header_eval = ['frame', 'actual', 'predicted', 'prob']
-  f_eval = open("evaluation/untuk_eval_si_jerdy.csv", 'w')
+  f_eval = open(eval_path, 'w')
   writer_eval = csv.writer(f_eval)
   array_of_data_eval = []
 
@@ -377,7 +373,7 @@ def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold
           frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
           image = Image.fromarray(frame)
       else:
-          print('Video sudah selesai! Silahkan dicek. di '+ output_path)
+          print('Video sudah selesai! Silahkan dicek. di '+ folder_path)
           break
       frame_num +=1
       print('Frame #: ', frame_num)
@@ -443,7 +439,7 @@ def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold
       detections = [detections[i] for i in indices]
 
       frame,array_of_data,set_of_id,tracker = deep_sort(tracker,detections,colors,frame,
-                                                        set_of_id,vid,frame_num,array_of_data,True, output_path)
+                                                        set_of_id,vid,frame_num,array_of_data,True, folder_path)
       
       # calculate frames per second of running detections
       fps = 1.0 / (time.time() - start_time)
@@ -467,4 +463,4 @@ def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold
 
   out.release()
   cv2.destroyAllWindows()
-  return output_path
+  return folder_path
