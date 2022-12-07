@@ -1,19 +1,6 @@
-# fungsi helper
-def get_output_name(output_path):
-  no_mp4 = output_path.strip(".mp4")
-  nama_folder = ""
-  for element in reversed(no_mp4):
-    if element == "/":
-      break
-    nama_folder = nama_folder + element
-  nama_folder = nama_folder[::-1]
-  print(nama_folder)
-  return (nama_folder)
-
-
-
 #   ====================================== SLOW DOWN VIDEO ======================================
-def slow_down_video(input_path, output_path):
+def slow_down_video(input_path, output_folder):
+    import os
     import cv2
     video = cv2.VideoCapture(input_path)
     fps = video.get(cv2.CAP_PROP_FPS)
@@ -33,24 +20,34 @@ def slow_down_video(input_path, output_path):
       
     size = (frame_width, frame_height)
 
-    # output_path itu untuk video yg ada bbox, jadi untuk yg slowdown pathnya dimodif dikit
-    file_name = get_output_name(output_path)
-    slow_output_path = "slowed/"+ file_name + "_slowed.mp4"
-      
+    # Ngebuat folder result kalo belom ada
+    if not os.path.exists("result"):
+        os.makedirs("result")
+
+    folder_path = "result/"+output_folder
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    
+    slow_folder_path = "result/"+output_folder+"/slowed"
+    if not os.path.exists(slow_folder_path):
+        os.makedirs(slow_folder_path)
+
+    # Ngebuat pathnya 
+    slow_output_path = "result/"+ output_folder + "/slowed/"+ output_folder + "_slowed.mp4"
+    
     # Below VideoWriter object will create a frame of above defined 
     # The output is stored in 'filename.avi' file.
     result = cv2.VideoWriter(slow_output_path, 
                             cv2.VideoWriter_fourcc(*'mp4v'),
-                            30, size)
-    
-    # Untuk ngehitung frame yang asli (soalnya ada yang di tengah tengah ngereturn frame ghoib)
+                            10, size) # Untuk ngatur FPS
+
+    # Untuk ngehitung frame yang asli (soalnya video yang dari gopro langsung ada yang di tengah tengah ngereturn frame ghoib)
     x=0
     while(x<frame_count):
         ret, frame = video.read()
         print(str(x) + str(ret))
       
         if ret == True: 
-            # Write the frame into the file 'filename.avi'
             result.write(frame)
             x+=1
       
@@ -65,7 +62,7 @@ def slow_down_video(input_path, output_path):
     result.release()
     cv2.destroyAllWindows()
       
-    print("The video was successfully saved")
+    print("Slowed video sudah selesai, silahkan cek di: " + slow_output_path)
     return slow_output_path
 
 
@@ -101,8 +98,13 @@ def boundingBox(track, colors, frame, bbox, class_name):
   import cv2
   color = colors[int(track.track_id) % len(colors)]
   color = [i * 255 for i in color]
+  # Bounding box utama
   cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color, 2)
+
+  # Untuk kotak tempat textnya
   cv2.rectangle(frame, (int(bbox[0]), int(bbox[1]-30)), (int(bbox[0])+(len(class_name)+len(str(track.track_id)))*17, int(bbox[1])), color, -1)
+
+  # Ya untuk text
   cv2.putText(frame, class_name + "-" + str(track.track_id),(int(bbox[0]), int(bbox[1]-10)),0, 0.75, (255,255,255),2)
   return frame
 
@@ -202,14 +204,12 @@ def measure_bbox(xmin, ymin, xmax, ymax):
 
 
 #   ====================================== SCREENSHOOT ======================================
-def screenshot(frame, pothole_id, output_path):
+def screenshot(frame, detection_id, folder_path, detect_what):
   import cv2, os
   # start helper function
-  nama_folder = get_output_name(output_path)
-  path_folder = "ss_" + nama_folder
-  if not os.path.isdir("result/" + path_folder):
-   os.makedirs("result/" + path_folder)
-  path_ss = "result/" + str(path_folder) + "/" + str(pothole_id) + ".png"
+  if not os.path.isdir(folder_path + "/ss_"+detect_what):
+   os.makedirs(folder_path + "/ss_"+ detect_what)
+  path_ss = folder_path + "/ss_"+ detect_what + "/" + str(detection_id) + ".png"
   full_color = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
   cv2.imwrite(path_ss, full_color)
   return path_ss
@@ -233,7 +233,7 @@ def timestamps(vid):
 
 
 #   ====================================== DEEP SORT ======================================
-def deep_sort(tracker,detections,colors,frame,set_of_id,vid,frame_num,array_of_data,flag_info, output_path):
+def deep_sort(tracker,detections,colors,frame,set_of_id,vid,frame_num,array_of_data,flag_info, folder_path, detect_what):
   import cv2
   # Call the tracker
   tracker.predict()
@@ -257,7 +257,7 @@ def deep_sort(tracker,detections,colors,frame,set_of_id,vid,frame_num,array_of_d
         set_of_id.add(track.track_id)
 
         # Panggil panggil fungsi
-        ss_path = screenshot(frame, track.track_id, output_path)
+        ss_path = screenshot(frame, track.track_id, folder_path, detect_what)
         time_stamp = str(timestamps(vid))
         real_size, real_x, real_y = measure_bbox(int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))
         current_count = counting(set_of_id)
@@ -274,7 +274,7 @@ def deep_sort(tracker,detections,colors,frame,set_of_id,vid,frame_num,array_of_d
 
 
 #   ====================================== OBJECT DETECTION ======================================
-def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold, output_path, csv_path) :
+def detection_and_deepsort(input_path, detect_what, score_threshold, iou_threshold, output_folder):
   import os
   # comment out below line to enable tensorflow logging outputs
   os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -292,15 +292,35 @@ def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold
   from tensorflow.compat.v1 import ConfigProto
   from tensorflow.compat.v1 import InteractiveSession
   # deep sort imports
-  from deep_sort import preprocessing, nn_matching
-  from deep_sort.detection import Detection
-  from deep_sort.tracker import Tracker
-  from tools import generate_detections as gdet
+  from dependency.deep_sort import preprocessing, nn_matching
+  from dependency.deep_sort.detection import Detection
+  from dependency.deep_sort.tracker import Tracker
+  from dependency.tools import generate_detections as gdet
+
+  # Ngebuat folder result kalo belom ada
+  if not os.path.exists("result"):
+      os.makedirs("result")
 
   # Variabel penting
   flag_video = input_path
-  flag_output = output_path
-  flag_weights = model_path
+
+  folder_path = "result/"+output_folder
+  if not os.path.exists(folder_path):
+      os.makedirs(folder_path)
+      
+  flag_output = "result/"+output_folder+"/"+detect_what+"_"+output_folder+".mp4"
+  csv_path = "result/"+output_folder+"/"+detect_what+"_"+output_folder+".csv"
+
+  folder_eval_path = "result/"+output_folder+"/eval"
+  if not os.path.exists(folder_eval_path):
+      os.makedirs(folder_eval_path)
+
+  eval_path ="result/"+output_folder+"/eval/"+detect_what+"_"+output_folder+".csv"
+  
+  if detect_what == "pothole":
+    flag_weights = "dependency/model/pothole"
+  else:
+    flag_weights = "dependency/model/alligator_crack"
   flag_score = score_threshold
   flag_iou = iou_threshold
 
@@ -309,7 +329,7 @@ def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold
   nms_max_overlap = 1.0
 
   # initialize deep sort
-  model_filename = 'model/untuk_deepsort.pb'
+  model_filename = 'dependency/model/untuk_deepsort.pb'
   encoder = gdet.create_box_encoder(model_filename, batch_size=1)
   # calculate cosine distance metric
   metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, None)
@@ -320,11 +340,6 @@ def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold
   config = ConfigProto()
   config.gpu_options.allow_growth = True
   session = InteractiveSession(config=config)
-
-  STRIDES = np.array([16, 32])
-  ANCHORS = np.array([23,27, 37,58, 81,82, 81,82, 135,169, 344,319]).reshape(2,3,2)
-  XYSCALE = [1.05, 1.05]
-  NUM_CLASS = 1
 
   video_path = flag_video
 
@@ -347,15 +362,19 @@ def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold
   frame_num = 0
   set_of_id = set()
 
-  # untuk csv detail pothole
-  header = ['pothole_id', 'frame', 'screenshoot', 'timestamp', 'real_size', 'real_x', 'real_y', 'bbox', 'total_count']
+  # untuk csv detail pothole / alligator crack
+  if detect_what == "pothole":
+    header = ['pothole_id', 'frame', 'screenshoot', 'timestamp', 'real_size', 'real_x', 'real_y', 'bbox', 'total_count']
+  else:
+    header = ['alligator_id', 'frame', 'screenshoot', 'timestamp', 'real_size', 'real_x', 'real_y', 'bbox', 'total_count']
+  
   f = open(csv_path, 'w')
   writer = csv.writer(f)
   array_of_data = []
 
   # untuk csv evaluasi
   header_eval = ['frame', 'actual', 'predicted', 'prob']
-  f_eval = open("evaluation/untuk_eval_si_jerdy.csv", 'w')
+  f_eval = open(eval_path, 'w')
   writer_eval = csv.writer(f_eval)
   array_of_data_eval = []
 
@@ -377,10 +396,10 @@ def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold
           frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
           image = Image.fromarray(frame)
       else:
-          print('Video sudah selesai! Silahkan dicek. di '+ output_path)
+          print('Video sudah selesai!')
           break
       frame_num +=1
-      print('Frame #: ', frame_num)
+      print('Frame deteksi '+ detect_what +' #: '+ str(frame_num))
       frame_size = frame.shape[:2]
       image_data = cv2.resize(frame, (416, 416))
       image_data = image_data / 255.
@@ -422,10 +441,17 @@ def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold
 
       # ngeappend ke array untuk ke csv evaluasi
       if len(scores) != 0:
-        data_eval = [frame_num, "", "pothole", scores]
-        array_of_data_eval.append(data_eval)
+        if detect_what == "pothole":
+          data_eval = [frame_num, "", "pothole", scores]
+          array_of_data_eval.append(data_eval)
+        else:
+          data_eval = [frame_num, "", "alligator_crack", scores]
+          array_of_data_eval.append(data_eval)
       
-      names=['pothole']
+      if detect_what == "pothole":
+        names=['pothole']
+      else:
+        names=['alligator_crack']
 
       # encode yolo detections and feed to tracker
       features = encoder(frame, bboxes)
@@ -443,7 +469,7 @@ def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold
       detections = [detections[i] for i in indices]
 
       frame,array_of_data,set_of_id,tracker = deep_sort(tracker,detections,colors,frame,
-                                                        set_of_id,vid,frame_num,array_of_data,True, output_path)
+                                                        set_of_id,vid,frame_num,array_of_data,True, folder_path, detect_what)
       
       # calculate frames per second of running detections
       fps = 1.0 / (time.time() - start_time)
@@ -456,6 +482,8 @@ def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold
       out.write(result)
       if cv2.waitKey(1) & 0xFF == ord('q'): break
   
+  session.close()
+
   writer.writerow(header)
   writer.writerows(array_of_data)
 
@@ -467,4 +495,38 @@ def detection_and_deepsort(input_path, model_path,score_threshold, iou_threshold
 
   out.release()
   cv2.destroyAllWindows()
-  return output_path
+  return flag_output
+
+
+
+
+#   ====================================== FUNGSI PIPELINE ======================================
+def road_damage_detection(input_video, out_folder):
+  slow_vid_path = slow_down_video(input_video, out_folder)
+
+  # Yang pothole dulu
+  detect_what = "pothole"
+  confidence_threshold = 0.4 # Batas bawah confidence level, prediksi yang conf levelnya berada di bawah 0.4 tidak dianggap (skala 0 sampai 1.0)
+  iou_threshold = 1.0 # Intersection over union, semakin tinggi ID switch semakin rendah (skala 0 sampai 1.0)
+  output_folder = out_folder
+
+  pothole_path = detection_and_deepsort(slow_vid_path,
+                      detect_what, 
+                      confidence_threshold,
+                      iou_threshold,
+                      output_folder)
+  
+  # Yang alligator
+  detect_what = "alligator_crack"
+  confidence_threshold = 0.15 # Batas bawah confidence level, prediksi yang conf levelnya berada di bawah 0.4 tidak dianggap (skala 0 sampai 1.0)
+  iou_threshold = 1.0 # Intersection over union, semakin tinggi ID switch semakin rendah (skala 0 sampai 1.0)
+  output_folder = out_folder
+
+  alligator_path = detection_and_deepsort(slow_vid_path,
+                      detect_what, 
+                      confidence_threshold,
+                      iou_threshold,
+                      output_folder)
+  
+  print("Video hasil pothole disimpan di:\n" + pothole_path +"\n\n")
+  print("Video hasil alligator crack disimpan di:\n" + alligator_path +"\n\n")

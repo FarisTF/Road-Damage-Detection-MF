@@ -1,4 +1,4 @@
-input/
-result/
-slowed/
-mf-pipeline/
+input/*
+result/*
+!input/.gitkeep
+!result/.gitkeep
