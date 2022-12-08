@@ -232,6 +232,38 @@ def timestamps(vid):
 
 
 
+#   ====================================== TIMESTAMP ======================================
+def evaluation(path_to_csv):
+  import csv
+  results = []
+  tp = 0
+  tn = 0
+  fp = 0
+  fn = 0
+  with open(path_to_csv) as csvfile:
+      reader = csv.reader(csvfile) # change contents to floats
+      next(reader, None)
+      for row in reader:
+        if (row[1] == "pothole" and row[2] == "pothole"):
+          tp = tp +1
+        elif (row[1] == "none" and row[2] == "none"):
+          tn = tn +1
+        elif (row[1] == "none" and row[2] == "pothole"):
+          fp = fp + 1
+        else:
+          fn = fn + 1
+
+  print("TP:",tp,"    TN:",tn,"    FP:",fp,"    FN:",fn)
+  accuracy=round((tp+tn)/(tp+tn+fp+fn),3)
+  precision=round(tp/(tp+fp),3) 
+  recall=round(tp/(tp+fn),3)
+  f1= round(2*((precision*recall)/(precision+recall)),3)
+  print("Accuracy:",accuracy,"\t Precision:",precision,"\t Recall:",recall, "\t F1 score:",f1)
+  
+  return accuracy, precision, recall, f1
+
+
+
 #   ====================================== DEEP SORT ======================================
 def deep_sort(tracker,detections,colors,frame,set_of_id,vid,frame_num,array_of_data,flag_info, folder_path, detect_what):
   import cv2
