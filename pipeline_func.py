@@ -224,10 +224,11 @@ def timestamps(vid):
   cap = vid
   ms = cap.get(cv2.CAP_PROP_POS_MSEC)
   print("Milisecond: "+str(ms))
-  bentuk_dt = datetime.timedelta(seconds=ms/1000)
-  print(str(bentuk_dt)[:-3])
-  print("Timestamp: "+str(bentuk_dt)[:-3])
-  return(str(bentuk_dt)[:-3]+"")
+  bentuk_dt = datetime.datetime.fromtimestamp(ms/1000.0, datetime.timezone.utc)
+  bentuk_str = bentuk_dt.strftime('%-H:%M:%S')
+  print(bentuk_str)
+  print("Timestamp: "+ bentuk_str)
+  return(bentuk_str)
 
 
 
