@@ -295,7 +295,7 @@ def deep_sort(tracker,detections,colors,frame,set_of_id,vid,frame_num,array_of_d
         real_size, real_x, real_y = measure_bbox(int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))
         current_count = counting(set_of_id)
 
-        data = [track.track_id, frame_num, ss_path, time_stamp, real_size, real_x, real_y, bbox, current_count]
+        data = [track.track_id, detect_what, frame_num, ss_path, time_stamp, real_size, real_x, real_y, bbox, current_count]
         array_of_data.append(data)
 
       # if enable info flag then print details about each track
@@ -342,13 +342,14 @@ def detection_and_deepsort(input_path, detect_what, score_threshold, iou_thresho
       os.makedirs(folder_path)
       
   flag_output = "result/"+output_folder+"/"+detect_what+"_"+output_folder+".mp4"
-  csv_path = "result/"+output_folder+"/"+detect_what+"_"+output_folder+".csv"
 
   folder_eval_path = "result/"+output_folder+"/eval"
   if not os.path.exists(folder_eval_path):
       os.makedirs(folder_eval_path)
 
-  eval_path ="result/"+output_folder+"/eval/"+detect_what+"_"+output_folder+".csv"
+  csv_path = "result/"+output_folder+"/eval/"+detect_what+"_"+output_folder+".csv"
+
+  eval_path ="result/"+output_folder+"/eval/eval_"+detect_what+"_"+output_folder+".csv"
   
   if detect_what == "Lubang":
     flag_weights = "dependency/model/Lubang"
@@ -396,10 +397,7 @@ def detection_and_deepsort(input_path, detect_what, score_threshold, iou_thresho
   set_of_id = set()
 
   # untuk csv detail Lubang / Retak Kulit Buaya
-  if detect_what == "Lubang":
-    header = ['lubang_id', 'frame', 'screenshoot', 'timestamp', 'real_size', 'real_x', 'real_y', 'bbox', 'total_count']
-  else:
-    header = ['retak_kulit_buaya_id', 'frame', 'screenshoot', 'timestamp', 'real_size', 'real_x', 'real_y', 'bbox', 'total_count']
+  header = ['id_kerusakan', 'jenis_kerusakan', 'frame', 'screenshoot', 'timestamp', 'real_size', 'real_x', 'real_y', 'bbox', 'total_count']
   
   f = open(csv_path, 'w')
   writer = csv.writer(f)
@@ -542,7 +540,7 @@ def detection_and_deepsort(input_path, detect_what, score_threshold, iou_thresho
 
   out.release()
   cv2.destroyAllWindows()
-  return flag_output
+  return flag_output, csv_path
 
 
 
@@ -557,7 +555,7 @@ def road_damage_detection(input_video, out_folder):
   iou_threshold = 1.0 # Intersection over union, semakin tinggi ID switch semakin rendah (skala 0 sampai 1.0)
   output_folder = out_folder
 
-  lubang_path = detection_and_deepsort(slow_vid_path,
+  lubang_path, csv_lubang_path = detection_and_deepsort(slow_vid_path,
                       detect_what, 
                       confidence_threshold,
                       iou_threshold,
@@ -569,11 +567,17 @@ def road_damage_detection(input_video, out_folder):
   iou_threshold = 1.0 # Intersection over union, semakin tinggi ID switch semakin rendah (skala 0 sampai 1.0)
   output_folder = out_folder
 
-  retak_kulit_buaya_path = detection_and_deepsort(slow_vid_path,
+  retak_kulit_buaya_path, csv_retak_kulit_buaya_path = detection_and_deepsort(slow_vid_path,
                       detect_what, 
                       confidence_threshold,
                       iou_threshold,
                       output_folder)
+
+  import pandas as pd
+  df_lubang = pd.read_csv(csv_lubang_path)
+  df_retak_kulit_buaya = pd.read_csv(csv_retak_kulit_buaya_path)
+
+  pd.concat([df_lubang, df_retak_kulit_buaya]).to_csv('result/'+ out_folder +'/detail_deteksi.csv',index = False)
   
   print("Video hasil Lubang disimpan di:\n" + lubang_path +"\n\n")
   print("Video hasil Retak Kulit Buaya disimpan di:\n" + retak_kulit_buaya_path +"\n\n")
