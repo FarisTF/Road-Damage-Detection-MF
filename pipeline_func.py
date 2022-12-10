@@ -232,7 +232,7 @@ def timestamps(vid):
 
 
 
-#   ====================================== TIMESTAMP ======================================
+#   ====================================== EVALUATION ======================================
 def evaluation(path_to_csv):
   import csv
   results = []
@@ -349,10 +349,10 @@ def detection_and_deepsort(input_path, detect_what, score_threshold, iou_thresho
 
   eval_path ="result/"+output_folder+"/eval/"+detect_what+"_"+output_folder+".csv"
   
-  if detect_what == "pothole":
-    flag_weights = "dependency/model/pothole"
+  if detect_what == "Lubang":
+    flag_weights = "dependency/model/Lubang"
   else:
-    flag_weights = "dependency/model/alligator_crack"
+    flag_weights = "dependency/model/Retak Kulit Buaya"
   flag_score = score_threshold
   flag_iou = iou_threshold
 
@@ -394,11 +394,11 @@ def detection_and_deepsort(input_path, detect_what, score_threshold, iou_thresho
   frame_num = 0
   set_of_id = set()
 
-  # untuk csv detail pothole / alligator crack
-  if detect_what == "pothole":
-    header = ['pothole_id', 'frame', 'screenshoot', 'timestamp', 'real_size', 'real_x', 'real_y', 'bbox', 'total_count']
+  # untuk csv detail Lubang / Retak Kulit Buaya
+  if detect_what == "Lubang":
+    header = ['lubang_id', 'frame', 'screenshoot', 'timestamp', 'real_size', 'real_x', 'real_y', 'bbox', 'total_count']
   else:
-    header = ['alligator_id', 'frame', 'screenshoot', 'timestamp', 'real_size', 'real_x', 'real_y', 'bbox', 'total_count']
+    header = ['retak_kulit_buaya_id', 'frame', 'screenshoot', 'timestamp', 'real_size', 'real_x', 'real_y', 'bbox', 'total_count']
   
   f = open(csv_path, 'w')
   writer = csv.writer(f)
@@ -438,7 +438,6 @@ def detection_and_deepsort(input_path, detect_what, score_threshold, iou_thresho
       image_data = image_data[np.newaxis, ...].astype(np.float32)
       start_time = time.time()
 
-      # run detections on tflite if flag is set
       batch_data = tf.constant(image_data)
       pred_bbox = infer(batch_data)
       for key, value in pred_bbox.items():
@@ -470,20 +469,11 @@ def detection_and_deepsort(input_path, detect_what, score_threshold, iou_thresho
 
       # store all predictions in one parameter for simplicity when calling functions
       pred_bbox = [bboxes, scores, classes, num_objects]
-
-      # ngeappend ke array untuk ke csv evaluasi
-      if len(scores) != 0:
-        if detect_what == "pothole":
-          data_eval = [frame_num, "", "pothole", scores]
-          array_of_data_eval.append(data_eval)
-        else:
-          data_eval = [frame_num, "", "alligator_crack", scores]
-          array_of_data_eval.append(data_eval)
       
-      if detect_what == "pothole":
-        names=['pothole']
+      if detect_what == "Lubang":
+        names=['Lubang']
       else:
-        names=['alligator_crack']
+        names=['Retak Kulit Buaya']
 
       # encode yolo detections and feed to tracker
       features = encoder(frame, bboxes)
@@ -499,6 +489,30 @@ def detection_and_deepsort(input_path, detect_what, score_threshold, iou_thresho
       classes = np.array([d.class_name for d in detections])
       indices = preprocessing.non_max_suppression(boxs, classes, nms_max_overlap, scores)
       detections = [detections[i] for i in indices]
+
+      # ngeappend ke array untuk ke csv evaluasi
+      if len(scores) != 0:
+        if detect_what == "Lubang":
+          data_eval = [frame_num, "", "Lubang", d.confidence]
+          array_of_data_eval.append(data_eval)
+        else:
+          data_eval = [frame_num, "", "Retak Kulit Buaya", d.confidence]
+          array_of_data_eval.append(data_eval)
+
+      # Untuk naro skor confidence di framenya (soalnya kalo udah masuk deepsort udah gaada lagi skor confidencenya)
+      for d in detections:
+        color = (0, 0, 0) # hitam legam
+
+        x_kiri_atas = int(d.to_tlbr[0])+(len(detect_what)+5)*17
+        y_kiri_atas = int(d.to_tlbr[1]-30)
+        x_kanan_bawah = x_kiri_atas + (len(d.confidence))*17
+        y_kanan_bawah = int(d.to_tlbr[1])
+
+        # Untuk kotak tempat text confidence score
+        cv2.rectangle(frame, (x_kiri_atas, y_kiri_atas), (x_kanan_bawah, y_kanan_bawah), color, -1)
+
+        # Ya untuk text confidence score
+        cv2.putText(frame, str(d.confidence),(x_kiri_atas, y_kiri_atas+20),0, 0.75, (255,255,255),2)
 
       frame,array_of_data,set_of_id,tracker = deep_sort(tracker,detections,colors,frame,
                                                         set_of_id,vid,frame_num,array_of_data,True, folder_path, detect_what)
@@ -536,29 +550,29 @@ def detection_and_deepsort(input_path, detect_what, score_threshold, iou_thresho
 def road_damage_detection(input_video, out_folder):
   slow_vid_path = slow_down_video(input_video, out_folder)
 
-  # Yang pothole dulu
-  detect_what = "pothole"
+  # Yang Lubang dulu
+  detect_what = "Lubang"
   confidence_threshold = 0.4 # Batas bawah confidence level, prediksi yang conf levelnya berada di bawah 0.4 tidak dianggap (skala 0 sampai 1.0)
   iou_threshold = 1.0 # Intersection over union, semakin tinggi ID switch semakin rendah (skala 0 sampai 1.0)
   output_folder = out_folder
 
-  pothole_path = detection_and_deepsort(slow_vid_path,
+  lubang_path = detection_and_deepsort(slow_vid_path,
                       detect_what, 
                       confidence_threshold,
                       iou_threshold,
                       output_folder)
   
-  # Yang alligator
-  detect_what = "alligator_crack"
+  # Yang Retak Kulit Buaya
+  detect_what = "Retak Kulit Buaya"
   confidence_threshold = 0.15 # Batas bawah confidence level, prediksi yang conf levelnya berada di bawah 0.4 tidak dianggap (skala 0 sampai 1.0)
   iou_threshold = 1.0 # Intersection over union, semakin tinggi ID switch semakin rendah (skala 0 sampai 1.0)
   output_folder = out_folder
 
-  alligator_path = detection_and_deepsort(slow_vid_path,
+  retak_kulit_buaya_path = detection_and_deepsort(slow_vid_path,
                       detect_what, 
                       confidence_threshold,
                       iou_threshold,
                       output_folder)
   
-  print("Video hasil pothole disimpan di:\n" + pothole_path +"\n\n")
-  print("Video hasil alligator crack disimpan di:\n" + alligator_path +"\n\n")
+  print("Video hasil Lubang disimpan di:\n" + lubang_path +"\n\n")
+  print("Video hasil Retak Kulit Buaya disimpan di:\n" + retak_kulit_buaya_path +"\n\n")
