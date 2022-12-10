@@ -39,7 +39,7 @@ def slow_down_video(input_path, output_folder):
     # The output is stored in 'filename.avi' file.
     result = cv2.VideoWriter(slow_output_path, 
                             cv2.VideoWriter_fourcc(*'mp4v'),
-                            10, size) # Untuk ngatur FPS
+                            30, size) # Untuk ngatur FPS
 
     # Untuk ngehitung frame yang asli (soalnya video yang dari gopro langsung ada yang di tengah tengah ngereturn frame ghoib)
     x=0
@@ -493,20 +493,20 @@ def detection_and_deepsort(input_path, detect_what, score_threshold, iou_thresho
       # ngeappend ke array untuk ke csv evaluasi
       if len(scores) != 0:
         if detect_what == "Lubang":
-          data_eval = [frame_num, "", "Lubang", d.confidence]
+          data_eval = [frame_num, "", "Lubang", scores]
           array_of_data_eval.append(data_eval)
         else:
-          data_eval = [frame_num, "", "Retak Kulit Buaya", d.confidence]
+          data_eval = [frame_num, "", "Retak Kulit Buaya", scores]
           array_of_data_eval.append(data_eval)
 
       # Untuk naro skor confidence di framenya (soalnya kalo udah masuk deepsort udah gaada lagi skor confidencenya)
       for d in detections:
         color = (0, 0, 0) # hitam legam
 
-        x_kiri_atas = int(d.to_tlbr[0])+(len(detect_what)+5)*17
-        y_kiri_atas = int(d.to_tlbr[1]-30)
-        x_kanan_bawah = x_kiri_atas + (len(d.confidence))*17
-        y_kanan_bawah = int(d.to_tlbr[1])
+        x_kiri_atas = int(d.to_tlbr()[0])+(len(detect_what)+5)*17
+        y_kiri_atas = int(d.to_tlbr()[1]-30)
+        x_kanan_bawah = x_kiri_atas + (len(str(d.confidence)))*17
+        y_kanan_bawah = int(d.to_tlbr()[1])
 
         # Untuk kotak tempat text confidence score
         cv2.rectangle(frame, (x_kiri_atas, y_kiri_atas), (x_kanan_bawah, y_kanan_bawah), color, -1)
