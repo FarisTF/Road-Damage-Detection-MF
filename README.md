@@ -28,3 +28,9 @@ out_folder = "video_itebe"
 road_damage_detection(input_video, out_folder)
 ```
 6. Tunggu 👍
+
+## Deteksi Lubang
+<p align="center"><img src="dependency/gif/Lubang.gif"\></p>
+
+## Deteksi Retak Kulit Buaya
+<p align="center"><img src="dependency/gif/Retak_Kulit_Buaya.gif"\></p>
