@@ -34,3 +34,23 @@ road_damage_detection(input_video, out_folder)
 
 ## Deteksi Retak Kulit Buaya
 <p align="center"><img src="dependency/gif/Retak_Kulit_Buaya.gif"\></p>
+
+## CSV Detail Kerusakan
+<p align="center"><img src="dependency/gif/csv_detail.png"\></p>
+
+# Matching Fund Alat Survey Kondisi Perkerasan Jalan - Kelompok AI
+
+18220002 - Verawati Esteria S. Simatupang  
+18220010 - Agnes Tamara Putri  
+18220022 - Kofifan Hertza Haribowo  
+18220028 - Muhammad Dzaki Dwi Putranto  
+18220038 - Akmal Jauhar Sidqi  
+18220042 - Faris Tristan Fabian  
+18220054 - Salimatussholati Az Zahra  
+18220066 - Michel Vito Adinugroho  
+18220080 - Vito Christian Samudra  
+18220082 - Sitanggang Jerry Josia Partogi  
+18220088 - Ahmad Wafika Samsea  
+18220100 - Hughie Raymonelika Manggala  
+18220106 - Thomas Stefen Mardianto  
+18220108 - Muhammad Furqan Alfuady  
